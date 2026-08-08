@@ -17,7 +17,7 @@ jobs:
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           
-          # Habilitar Redirecionamento de Áudio no Registro
+          # Habilitar Redirecionamento e Captura de Áudio no Registro
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "fDisableAudio" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fDisableAudioCapture" -Value 0 -Force
           
@@ -25,19 +25,6 @@ jobs:
           Set-Service -Name "Audiosrv" -StartupType Automatic
           Start-Service -Name "Audiosrv"
           Restart-Service -Name TermService -Force
-
-      - name: Install Virtual Audio Driver
-        run: |
-          # Baixar e instalar driver de áudio virtual
-          $audioUrl = "https://download.vb-audio.com/Download_ZIP/VBCABLE_Driver_Pack43.zip"
-          $zipPath = "$env:TEMP\vbcable.zip"
-          $extractPath = "$env:TEMP\vbcable"
-          
-          Invoke-WebRequest -Uri $audioUrl -OutFile $zipPath
-          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-          
-          Start-Process -FilePath "$extractPath\VBCABLE_Setup_x64.exe" -ArgumentList "-i", "-h" -Wait
-          Remove-Item $zipPath -Force
 
       - name: Create RDP User with Secure Password
         run: |
