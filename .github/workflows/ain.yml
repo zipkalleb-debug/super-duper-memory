@@ -30,12 +30,13 @@ jobs:
           
           Restart-Service -Name TermService -Force
 
-      - name: Set Language to Portuguese
+      - name: Set Language and Keyboard to PT-BR
         run: |
-          # Define o idioma para PT-BR e layout de teclado ABNT2
-          Set-WinUserLanguageList -LanguageList pt-BR -Force
-          Set-WinUILanguageOverride -Language pt-BR
+          # Define o layout de teclado ABNT2 e formato de região PT-BR
+          $LangList = New-WinUserLanguageList -Language "pt-BR"
+          Set-WinUserLanguageList -LanguageList $LangList -Force
           Set-Culture pt-BR
+          Set-WinSystemLocale pt-BR
 
       - name: Create RDP User with Secure Password
         run: |
