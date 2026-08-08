@@ -23,7 +23,7 @@ jobs:
           
           # Iniciar Serviço de Áudio do Windows
           Set-Service -Name "Audiosrv" -StartupType Automatic
-          Start-Service -Name "Audiosrv" -Force
+          Start-Service -Name "Audiosrv"
           Restart-Service -Name TermService -Force
 
       - name: Install Virtual Audio Driver
