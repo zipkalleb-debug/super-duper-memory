@@ -8,14 +8,36 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 3600
     steps:
-      - name: Configure Core RDP Settings By Yamzz
+      - name: Configure Core RDP Settings and Enable Audio Policy
         run: |
+          # Liberar RDP e Firewall
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
+          
+          # Habilitar Redirecionamento de Áudio no Registro
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "fDisableAudio" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fDisableAudioCapture" -Value 0 -Force
+          
+          # Iniciar Serviço de Áudio do Windows
+          Set-Service -Name "Audiosrv" -StartupType Automatic
+          Start-Service -Name "Audiosrv" -Force
           Restart-Service -Name TermService -Force
+
+      - name: Install Virtual Audio Driver
+        run: |
+          # Baixar e instalar driver de áudio virtual
+          $audioUrl = "https://download.vb-audio.com/Download_ZIP/VBCABLE_Driver_Pack43.zip"
+          $zipPath = "$env:TEMP\vbcable.zip"
+          $extractPath = "$env:TEMP\vbcable"
+          
+          Invoke-WebRequest -Uri $audioUrl -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+          
+          Start-Process -FilePath "$extractPath\VBCABLE_Setup_x64.exe" -ArgumentList "-i", "-h" -Wait
+          Remove-Item $zipPath -Force
 
       - name: Create RDP User with Secure Password
         run: |
@@ -40,7 +62,6 @@ jobs:
 
       - name: Establish Tailscale Connection
         env:
-          # Mude o nome abaixo caso tenha criado a secret com outro nome no GitHub
           TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY_NOVA }}
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTHKEY
