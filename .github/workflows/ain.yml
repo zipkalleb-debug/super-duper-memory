@@ -40,7 +40,8 @@ jobs:
 
       - name: Establish Tailscale Connection
         env:
-          TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+          # Mude o nome abaixo caso tenha criado a secret com outro nome no GitHub
+          TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY_NOVA }}
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTHKEY
 
