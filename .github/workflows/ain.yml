@@ -30,13 +30,12 @@ jobs:
           
           Restart-Service -Name TermService -Force
 
-      - name: Set Language and Keyboard to PT-BR
+      - name: Set Regional Culture and Keyboard
         run: |
-          # Define o layout de teclado ABNT2 e formato de região PT-BR
-          $LangList = New-WinUserLanguageList -Language "pt-BR"
-          Set-WinUserLanguageList -LanguageList $LangList -Force
+          # Define o formato de cultura do sistema e codificação de região para PT-BR
           Set-Culture pt-BR
-          Set-WinSystemLocale pt-BR
+          Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "LocaleName" -Value "pt-BR"
+          Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "sLanguage" -Value "PTB"
 
       - name: Create RDP User with Secure Password
         run: |
