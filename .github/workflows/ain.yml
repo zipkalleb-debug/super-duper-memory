@@ -44,6 +44,7 @@ jobs:
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTHKEY
 
-            - name: Keep Alive
+      - name: Keep Alive
         run: |
           while ($true) { Start-Sleep -Seconds 60 }
+          
