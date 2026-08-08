@@ -43,3 +43,8 @@ jobs:
           TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTHKEY
+
+      - name: Keep Alive (Manter Ligado)
+        run: |
+          while ($true) { Start-Sleep -Seconds 60 }
+          
