@@ -8,7 +8,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 3600
     steps:
-      - name: Configure Core RDP Settings and Enable Audio Policy
+      - name: Configure Core RDP Settings and Audio Redirection
         run: |
           # Liberar RDP e Firewall
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
@@ -17,14 +17,25 @@ jobs:
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           
-          # Habilitar Redirecionamento e Captura de Áudio no Registro
+          # Habilitar Redirecionamento de Áudio (Saída e Entrada/Microfone)
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "fDisableAudio" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "fDisableAudioCapture" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "fDisableAudioCapture" -Value 0 -Force
           
-          # Iniciar Serviço de Áudio do Windows
+          # Iniciar Serviços de Áudio essenciais
           Set-Service -Name "Audiosrv" -StartupType Automatic
           Start-Service -Name "Audiosrv"
+          Set-Service -Name "AudioEndpointBuilder" -StartupType Automatic
+          Start-Service -Name "AudioEndpointBuilder"
+          
           Restart-Service -Name TermService -Force
+
+      - name: Set Language to Portuguese
+        run: |
+          # Define o idioma para PT-BR e layout de teclado ABNT2
+          Set-WinUserLanguageList -LanguageList pt-BR -Force
+          Set-WinUILanguageOverride -Language pt-BR
+          Set-Culture pt-BR
 
       - name: Create RDP User with Secure Password
         run: |
@@ -56,4 +67,3 @@ jobs:
       - name: Keep Alive
         run: |
           while ($true) { Start-Sleep -Seconds 60 }
-          
