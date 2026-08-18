@@ -1,0 +1,51 @@
+name: Linux Cloud PC - AnyDesk Direct
+
+on:
+  workflow_dispatch:
+
+jobs: 
+  build:
+    name: Subindo maquina Linux...
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Instalar AnyDesk
+        run: |
+          sudo apt-get update -y
+          wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/anydesk.gpg
+          echo "deb http://deb.anydesk.com/ all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list
+          sudo apt-get update -y
+          sudo apt-get install -y anydesk
+
+      - name: Configurar e Rodar AnyDesk
+        run: |
+          # 1. Gera senha
+          PASSWORD="password123"
+          echo "$PASSWORD" | sudo anydesk --set-password
+          
+          # 2. Inicia o AnyDesk em background sem tentar subir como serviço do sistema
+          # Usamos nohup para ele não morrer quando o script terminar
+          sudo anydesk --start-service &
+          sleep 5
+          
+          # 3. Tenta pegar o ID direto
+          echo "Buscando ID..."
+          ANYDESK_ID=$(anydesk --get-id)
+          
+          echo "=========================================="
+          if [ -z "$ANYDESK_ID" ]; then
+            echo "ID não retornado pelo comando direto. Tentando ler arquivo..."
+            # Força a leitura do arquivo de configuração onde o AnyDesk salva o ID localmente
+            ANYDESK_ID=$(sudo grep -oP 'ad.anydesk.id=\K\d+' /etc/anydesk/system.conf || echo "NAO_ENCONTRADO")
+          fi
+          
+          echo "SEU ID ANYDESK : $ANYDESK_ID"
+          echo "SENHA          : $PASSWORD"
+          echo "=========================================="
+
+      - name: Manter Maquina Ligada
+        run: |
+          # Mantém o processo vivo
+          while true; do sleep 60; done
+          
