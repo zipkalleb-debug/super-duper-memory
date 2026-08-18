@@ -1,55 +1,51 @@
-name: Linux Cloud PC - AnyDesk Direct
+name: Linux Cloud PC - RDP Remoto (Mais Rápido)
 
 on:
   workflow_dispatch:
 
-jobs: 
+jobs:
   build:
-    name: Subindo maquina Linux...
+    name: Subindo Linux com RDP...
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
-      - name: Instalar Dependencias
+      - name: Instalar Interface e RDP
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y xvfb dbus-x11
-          
-          # Baixa e instala AnyDesk
-          wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/anydesk.gpg
-          echo "deb http://deb.anydesk.com/ all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp
+          # Configura o XFCE para rodar no RDP
+          echo xfce4-session > ~/.xsession
+          sudo systemctl enable xrdp
+          sudo systemctl start xrdp
+
+      - name: Instalar Ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
           sudo apt-get update -y
-          sudo apt-get install -y anydesk
+          sudo apt-get install -y ngrok
 
-      - name: Rodar AnyDesk Force
+      - name: Iniciar Túnel e Obter Endereço
+        env:
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
         run: |
-          # 1. Mata qualquer processo do AnyDesk que travou na instalacao
-          sudo killall anydesk || true
+          ngrok authtoken $NGROK_TOKEN
+          # O RDP usa a porta 3389
+          ngrok tcp 3389 &
+          sleep 5
           
-          # 2. Inicia o D-Bus e o Xvfb (necessários para o AnyDesk funcionar em servidor)
-          sudo /etc/init.d/dbus start
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          export DISPLAY=:99
-          
-          # 3. Tenta configurar a senha ignorando o serviço (acesso direto)
-          echo "password123" | sudo anydesk --set-password
-          
-          # 4. Inicia em background
-          sudo anydesk --start-service &
-          
-          # 5. Aguarda e verifica o ID
-          echo "Aguardando geração do ID..."
-          sleep 10
-          
-          # Tenta o comando direto, se falhar, tenta ler o arquivo
-          ANYDESK_ID=$(anydesk --get-id 2>/dev/null || grep -oP 'ad.anydesk.id=\K\d+' /etc/anydesk/system.conf)
-          
+          URL=$(curl -s http://localhost:4040/api/tunnels | grep -oP 'tcp://\K[^"]+')
           echo "=========================================="
-          echo "SEU ID ANYDESK : $ANYDESK_ID"
-          echo "SENHA          : password123"
+          echo "CONEXÃO RDP PRONTA!"
+          echo "ENDEREÇO : $URL"
+          echo "Usuário: runner (ou root)"
+          echo "Senha  : (Defina uma senha abaixo se necessário)"
           echo "=========================================="
 
-      - name: Keep Alive
+      - name: Manter Maquina Ligada
         run: |
+          # Define senha para o usuário runner
+          echo "runner:123456" | sudo chpasswd
           while true; do sleep 60; done
           
