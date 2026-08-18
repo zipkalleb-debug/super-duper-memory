@@ -7,63 +7,59 @@ jobs:
   build:
     name: Start Building...
     runs-on: windows-2022
-    timeout-minutes: 360  # Limite máximo do GitHub Actions (6 horas)
+    timeout-minutes: 360  # Limite de 6 horas
 
     steps:
       - name: Installing AnyDesk via Chocolatey
         run: |
-          # Instala o AnyDesk ignorando a divergência de hash (checksum)
           choco install anydesk -y --no-progress --ignore-checksums
-          
-          # Aguarda 5 segundos para garantir que o serviço registrou no sistema
           Start-Sleep -Seconds 5
 
       - name: Configure and Start AnyDesk
         run: |
           $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
+          $configPath = "C:\ProgramData\AnyDesk\system.conf"
           
           if (Test-Path $anydeskPath) {
               Write-Host "AnyDesk encontrado! Configurando acesso..."
               
-              # Gera uma senha aleatória segura de 12 caracteres
+              # Gera senha aleatória de 12 caracteres
               $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
               $randomPassword = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
               
-              # Define a senha aleatória para acesso não supervisionado
+              # Define a senha para acesso não supervisionado
               echo $randomPassword | & $anydeskPath --set-password
               
               # Inicia o serviço do AnyDesk
               Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
               
-              # Aguarda 30 segundos para o AnyDesk se conectar e gerar o ID de fato
-              Write-Host "Aguardando 30 segundos para o AnyDesk obter o ID na rede..."
-              Start-Sleep -Seconds 30
+              # Aguarda a geração do ID e do arquivo de configuração
+              Write-Host "Aguardando obtenção do ID na rede AnyDesk..."
+              $timeout = 30
+              while (-not (Test-Path $configPath) -and $timeout -gt 0) {
+                  Start-Sleep -Seconds 2
+                  $timeout -= 2
+              }
               
-              Write-Host "=========================================="
-              Write-Host "DADOS DE CONEXÃO ENCONTRADOS:"
-              Write-Host "=========================================="
+              Start-Sleep -Seconds 10
               
-              # Busca por qualquer linha que contenha a palavra "id" nos arquivos de configuração
-              if (Test-Path "C:\ProgramData\AnyDesk\service.conf") {
-                  Get-Content "C:\ProgramData\AnyDesk\service.conf" | Select-String "id" | ForEach-Object {
-                      Write-Host $_
+              # Extrai o ID diretamente da chave do arquivo de configuração
+              $anydeskId = ""
+              if (Test-Path $configPath) {
+                  $idLine = Get-Content $configPath | Select-String "ad.anydesk.id="
+                  if ($idLine) {
+                      $anydeskId = $idLine.ToString().Split("=")[1].Trim()
                   }
               }
               
-              if (Test-Path "C:\ProgramData\AnyDesk\system.conf") {
-                  Get-Content "C:\ProgramData\AnyDesk\system.conf" | Select-String "id" | ForEach-Object {
-                      Write-Host $_
-                  }
-              }
-              
-              # Tenta também o método via linha de comando como garantia
-              $cmdId = & $anydeskPath --get-id
-              if ($cmdId) {
-                  Write-Host "ID via terminal: $cmdId"
+              # Se não encontrar no arquivo, tenta o comando secundário
+              if (-not $anydeskId) {
+                  $anydeskId = (& $anydeskPath --get-id).Trim()
               }
               
               Write-Host "=========================================="
-              Write-Host "Sua senha gerada para conectar é: $randomPassword"
+              Write-Host "SEU ID ANYDESK : $anydeskId"
+              Write-Host "SUA SENHA      : $randomPassword"
               Write-Host "=========================================="
               
           } else {
@@ -74,18 +70,14 @@ jobs:
       - name: Keep Alive and Monitor
         run: |
           $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
-          # Loop para manter a máquina rodando e monitorar o AnyDesk
+          
+          # Mantém a VM viva até atingir o tempo limite do Job
           while ($true) {
-            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-            if (-not $process) {
-              Write-Host "AnyDesk não está rodando, reiniciando..."
-              Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
-            }
-            Start-Sleep -Seconds 60  # Verifica e segura o script a cada 1 minuto
+              $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+              if (-not $process) {
+                  Write-Host "Reiniciando serviço AnyDesk..."
+                  Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
+              }
+              Start-Sleep -Seconds 60
           }
-
-      - name: Clean Up Temporary Files
-        if: always() # Executa mesmo se o monitoramento for cancelado
-        run: |
-          Write-Host "Limpeza completa."
           
