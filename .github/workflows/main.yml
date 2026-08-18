@@ -1,3 +1,20 @@
+name: Windows Cloud PC - Anydesk (Optimized)
+
+on:
+  workflow_dispatch:
+
+jobs: 
+  build:
+    name: Start Building...
+    runs-on: windows-2022
+    timeout-minutes: 360  # Limite de 6 horas
+
+    steps:
+      - name: Installing AnyDesk via Chocolatey
+        run: |
+          choco install anydesk -y --no-progress --ignore-checksums
+          Start-Sleep -Seconds 5
+
       - name: Configure and Start AnyDesk
         run: |
           $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
@@ -61,5 +78,19 @@
           } else {
               Write-Error "AnyDesk não foi encontrado no caminho padrão."
               exit 1
+          }
+
+      - name: Keep Alive and Monitor
+        run: |
+          $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
+          
+          # Mantém a VM viva até atingir o tempo limite do Job
+          while ($true) {
+              $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+              if (-not $process) {
+                  Write-Host "Reiniciando serviço AnyDesk..."
+                  Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
+              }
+              Start-Sleep -Seconds 60
           }
           
