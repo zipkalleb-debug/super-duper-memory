@@ -1,4 +1,4 @@
-name: Linux Cloud PC - RDP Remoto (Mais Rápido)
+name: Linux Cloud PC - RDP Facil
 
 on:
   workflow_dispatch:
@@ -10,42 +10,30 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Instalar Interface e RDP
+      - name: Instalar Interface, RDP e tmate
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp
-          # Configura o XFCE para rodar no RDP
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp tmate
           echo xfce4-session > ~/.xsession
           sudo systemctl enable xrdp
           sudo systemctl start xrdp
+          echo "runner:123456" | sudo chpasswd
 
-      - name: Instalar Ngrok
+      - name: Iniciar Tunel Sem Token
         run: |
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt-get update -y
-          sudo apt-get install -y ngrok
-
-      - name: Iniciar Túnel e Obter Endereço
-        env:
-          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
-        run: |
-          ngrok authtoken $NGROK_TOKEN
-          # O RDP usa a porta 3389
-          ngrok tcp 3389 &
-          sleep 5
+          # Inicia o tmate em segundo plano para gerar o endereço público
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
           
-          URL=$(curl -s http://localhost:4040/api/tunnels | grep -oP 'tcp://\K[^"]+')
+          # Pega o comando de conexão gerado
+          TMATE_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          
           echo "=========================================="
-          echo "CONEXÃO RDP PRONTA!"
-          echo "ENDEREÇO : $URL"
-          echo "Usuário: runner (ou root)"
-          echo "Senha  : (Defina uma senha abaixo se necessário)"
+          echo "CONEXÃO SSH PRONTA!"
+          echo "Comando: $TMATE_URL"
           echo "=========================================="
 
       - name: Manter Maquina Ligada
         run: |
-          # Define senha para o usuário runner
-          echo "runner:123456" | sudo chpasswd
           while true; do sleep 60; done
           
