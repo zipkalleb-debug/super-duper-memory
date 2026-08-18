@@ -1,4 +1,4 @@
-name: Linux Cloud PC - RDP Facil
+name: Linux Cloud PC - RDP Funcional
 
 on:
   workflow_dispatch:
@@ -10,30 +10,15 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Instalar Interface, RDP e tmate
+      - name: Instalar Interface e RDP
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp tmate
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp
           echo xfce4-session > ~/.xsession
           sudo systemctl enable xrdp
           sudo systemctl start xrdp
           echo "runner:123456" | sudo chpasswd
 
-      - name: Iniciar Tunel Sem Token
-        run: |
-          # Inicia o tmate em segundo plano para gerar o endereço público
-          tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait tmate-ready
-          
-          # Pega o comando de conexão gerado
-          TMATE_URL=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
-          
-          echo "=========================================="
-          echo "CONEXÃO SSH PRONTA!"
-          echo "Comando: $TMATE_URL"
-          echo "=========================================="
-
-      - name: Manter Maquina Ligada
-        run: |
-          while true; do sleep 60; done
-          
+      - name: Iniciar Tunel Automatico
+        uses: mxschmitt/action-tmate@v3
+        
