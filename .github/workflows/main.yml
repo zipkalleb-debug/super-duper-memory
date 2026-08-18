@@ -1,4 +1,4 @@
-name: Linux Cloud PC - Anydesk Fast ID
+name: Linux Cloud PC - AnyDesk Fast ID
 
 on:
   workflow_dispatch:
@@ -6,71 +6,69 @@ on:
 jobs: 
   build:
     name: Subindo maquina Linux...
-    runs-on: ubuntu-latest # Sistema Operacional alterado para Linux (Ubuntu)
-    timeout-minutes: 360  # Limite de 6 horas
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
 
     steps:
-      - name: Atualizar sistema e instalar AnyDesk no Linux
+      - name: Instalar AnyDesk e Dependencias (Xvfb)
         run: |
           sudo apt-get update -y
-          # Instala dependencias e o AnyDesk no Ubuntu
-          wget -qG2O - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo apt-key add -
+          # Instala o Xvfb para simular monitor para o AnyDesk
+          sudo apt-get install -y xvfb
+          # Adiciona repositório e chave do AnyDesk
+          wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/anydesk.gpg
           echo "deb http://deb.anydesk.com/ all main" | sudo tee /etc/apt/sources.list.d/anydesk-stable.list
           sudo apt-get update -y
-          sudo apt-get install anydesk -y
+          sudo apt-get install -y anydesk
 
-      - name: Configurar AnyDesk e Buscar ID Rapido
+      - name: Configurar e Capturar ID
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Gera uma senha aleatoria de 12 caracteres
+          # Gera senha aleatória
           RANDOM_PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
-          
-          # Define a senha de acesso nao supervisionado no Linux
           echo "$RANDOM_PASSWORD" | sudo anydesk --set-password
           
-          # Inicia a busca rápida em loop pelo ID (checa a cada 3 segundos até dar 30s)
+          # Inicia o AnyDesk em uma tela virtual
+          xvfb-run --server-args="-screen 0 1024x768x24" anydesk --start-service &
+          
+          echo "Aguardando geração do ID (tentativa em 30 segundos)..."
+          
           ANYDESK_ID=""
-          ELAPSED=0
-          
-          echo "Buscando ID do AnyDesk na rede..."
-          
-          while [ -z "$ANYDESK_ID" ] && [ $ELAPSED -lt 30 ]; do
-              sleep 3
-              ELAPSED=$((ELAPSED + 3))
-              
-              # Tenta capturar o ID pelo comando nativo do Linux
-              ANYDESK_ID=$(anydesk --get-id 2>/dev/null | tr -d '\n')
-              
-              # Se falhar, tenta ler direto no arquivo de configuracao do Linux
-              if [ -z "$ANYDESK_ID" ] && [ -f /etc/anydesk/system.conf ]; then
-                  ANYDESK_ID=$(grep 'ad.anydesk.id=' /etc/anydesk/system.conf | cut -d'=' -f2 | tr -d '\n')
-              fi
+          # Loop de 10 tentativas a cada 3 segundos
+          for i in {1..10}; do
+            sleep 3
+            # Tenta pegar o ID
+            ANYDESK_ID=$(xvfb-run --server-args="-screen 0 1024x768x24" anydesk --get-id 2>/dev/null | tr -d '\n')
+            
+            if [ -n "$ANYDESK_ID" ]; then
+              break
+            fi
+            echo "Tentativa $i: Ainda buscando..."
           done
 
-          # Exibe o ID e Senha de forma destacada no Log
+          # Resultado
           echo "=========================================="
           if [ -n "$ANYDESK_ID" ]; then
               echo "SEU ID ANYDESK : $ANYDESK_ID"
           else
-              echo "AVISO: O ID demorou mais de 30s para registrar."
+              echo "AVISO: ID não gerado. Verifique os logs."
           fi
           echo "SUA SENHA      : $RANDOM_PASSWORD"
           echo "=========================================="
 
-          # Envia notificacao para o Telegram (se as chaves existirem)
+          # Notificação via Telegram (Opcional)
           if [ -n "$TELEGRAM_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-              MSG="🐧 *Linux Cloud PC Pronto!*%0A%0A🔑 *ID:* \`$ANYDESK_ID\`%0A🔐 *Senha:* \`$RANDOM_PASSWORD\`"
+              MSG="🐧 *Cloud PC Pronto!*%0A%0A🔑 *ID:* \`$ANYDESK_ID\`%0A🔐 *Senha:* \`$RANDOM_PASSWORD\`"
               curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendMessage" \
                 -d "chat_id=$TELEGRAM_CHAT_ID" \
                 -d "text=$MSG" \
                 -d "parse_mode=Markdown" > /dev/null
           fi
 
-      - name: Keep Alive (Manter Linux rodando)
+      - name: Manter Maquina Ligada
         run: |
-          while true; do
-              sleep 60
-          done
+          echo "Mantendo maquina ligada..."
+          sleep 6h
           
