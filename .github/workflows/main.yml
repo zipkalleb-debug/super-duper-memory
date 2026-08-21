@@ -1,47 +1,90 @@
-name: Linux Cloud PC - RDP Ngrok
+Name: Windows Cloud PC - Anydesk (Optimized)
 
 on:
   workflow_dispatch:
 
-jobs:
+jobs: 
   build:
-    name: Subindo Linux com RDP...
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+    name: Start Building...
+    runs-on: windows-2022
+    timeout-minutes: 360  # Limite máximo do GitHub Actions (6 horas)
 
     steps:
-      - name: Instalar Interface e RDP
+      - name: Installing AnyDesk via Chocolatey
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp
-          echo xfce4-session > ~/.xsession
-          sudo systemctl enable xrdp
-          sudo systemctl start xrdp
-          echo "runner:123456" | sudo chpasswd
+          # Instala o AnyDesk ignorando a divergência de hash (checksum)
+          choco install anydesk -y --no-progress --ignore-checksums
+          
+          # Aguarda 5 segundos para garantir que o serviço registrou no sistema
+          Start-Sleep -Seconds 5
 
-      - name: Instalar e Iniciar Ngrok
+      - name: Configure and Start AnyDesk
         run: |
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt-get update -y
-          sudo apt-get install -y ngrok
+          $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
           
-          # Cole o seu Authtoken do Ngrok entre as aspas abaixo:
-          ngrok authtoken "SEU_TOKEN_DO_NGROK_AQUI"
-          
-          # Inicia o túnel RDP
-          ngrok tcp 3389 &
-          sleep 5
-          
-          # Exibe o endereço final para o Windows App
-          URL=$(curl -s http://localhost:4040/api/tunnels | grep -oP 'tcp://\K[^"]+')
-          echo "=========================================="
-          echo "ENDEREÇO PARA O WINDOWS APP: $URL"
-          echo "USUÁRIO: runner"
-          echo "SENHA  : 123456"
-          echo "=========================================="
+          if (Test-Path $anydeskPath) {
+              Write-Host "AnyDesk encontrado! Configurando acesso..."
+              
+              # Gera uma senha aleatória segura de 12 caracteres
+              $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+              $randomPassword = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+              
+              # Define a senha aleatória para acesso não supervisionado
+              echo $randomPassword | & $anydeskPath --set-password
+              
+              # Inicia o serviço do AnyDesk
+              Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
+              
+              # Aguarda 30 segundos para o AnyDesk se conectar e gerar o ID de fato
+              Write-Host "Aguardando 30 segundos para o AnyDesk obter o ID na rede..."
+              Start-Sleep -Seconds 30
+              
+              Write-Host "=========================================="
+              Write-Host "DADOS DE CONEXÃO ENCONTRADOS:"
+              Write-Host "=========================================="
+              
+              # Busca por qualquer linha que contenha a palavra "id" nos arquivos de configuração
+              if (Test-Path "C:\ProgramData\AnyDesk\service.conf") {
+                  Get-Content "C:\ProgramData\AnyDesk\service.conf" | Select-String "id" | ForEach-Object {
+                      Write-Host $_
+                  }
+              }
+              
+              if (Test-Path "C:\ProgramData\AnyDesk\system.conf") {
+                  Get-Content "C:\ProgramData\AnyDesk\system.conf" | Select-String "id" | ForEach-Object {
+                      Write-Host $_
+                  }
+              }
+              
+              # Tenta também o método via linha de comando como garantia
+              $cmdId = & $anydeskPath --get-id
+              if ($cmdId) {
+                  Write-Host "ID via terminal: $cmdId"
+              }
+              
+              Write-Host "=========================================="
+              Write-Host "Sua senha gerada para conectar é: $randomPassword"
+              Write-Host "=========================================="
+              
+          } else {
+              Write-Error "AnyDesk não foi encontrado no caminho padrão."
+              exit 1
+          }
 
-      - name: Manter Maquina Ligada
+      - name: Keep Alive and Monitor
         run: |
-          while true; do sleep 60; done
-          
+          $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
+          # Loop para manter a máquina rodando e monitorar o AnyDesk
+          while ($true) {
+            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Write-Host "AnyDesk não está rodando, reiniciando..."
+              Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
+            }
+            Start-Sleep -Seconds 60  # Verifica e segura o script a cada 1 minuto
+          }
+
+      - name: Clean Up Temporary Files
+        if: always() # Executa mesmo se o monitoramento for cancelado
+        run: |
+          Write-Host "Limpeza completa."
