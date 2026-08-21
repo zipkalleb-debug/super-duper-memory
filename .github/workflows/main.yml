@@ -1,4 +1,4 @@
-Name: Windows Cloud PC - Anydesk (Optimized)
+name: Windows Cloud PC - Anydesk (Optimized)
 
 on:
   workflow_dispatch:
