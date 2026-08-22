@@ -1,76 +1,67 @@
-name: macOS Cloud PC - Anydesk (Optimized)
+Name: Windows Cloud PC - Anydesk (Optimized)
 
 on:
-  workflow_dispatch: # Permite ligar manualmente pelo botão "Run workflow"
+  workflow_dispatch:
   schedule:
-    - cron: '0 */3 * * *' # Religa a máquina automaticamente a cada 3 horas
+    - cron: '0 */6 * * *'
 
 jobs: 
   build:
-    name: Start Building macOS...
-    runs-on: macos-latest
-    timeout-minutes: 175 # Encerra aos 2h55m para permitir reconexão limpa
+    name: Start Building...
+    runs-on: windows-2019
+    timeout-minutes: 355
 
     steps:
-      - name: Install AnyDesk via Homebrew
+      - name: Installing AnyDesk via Chocolatey
         run: |
-          echo "Instalando AnyDesk..."
-          brew install --cask anydesk
+          choco install anydesk -y --no-progress --ignore-checksums
+          Start-Sleep -Seconds 5
 
       - name: Configure and Start AnyDesk
         run: |
-          ANYDESK_PATH="/Applications/AnyDesk.app/Contents/MacOS/AnyDesk"
+          $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
           
-          if [ -f "$ANYDESK_PATH" ]; then
-              echo "AnyDesk encontrado! Configurando acesso..."
+          if (Test-Path $anydeskPath) {
+              Write-Host "AnyDesk encontrado! Configurando acesso..."
               
-              # Gera uma senha aleatória segura de 12 caracteres
-              RANDOM_PASSWORD=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 12)
+              $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+              $randomPassword = -join ((1..12) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
               
-              # Define a senha aleatória para acesso não supervisionado
-              echo "$RANDOM_PASSWORD" | sudo "$ANYDESK_PATH" --set-password
+              echo $randomPassword | & $anydeskPath --set-password
+              Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
               
-              # Inicia o aplicativo em segundo plano
-              open -a AnyDesk
+              Write-Host "Aguardando 30 segundos para gerar o ID..."
+              Start-Sleep -Seconds 30
               
-              echo "Aguardando 30 segundos para obter o ID..."
-              sleep 30
+              Write-Host "=========================================="
+              Write-Host "DADOS DE CONEXÃO ENCONTRADOS:"
+              Write-Host "=========================================="
               
-              echo "=========================================="
-              echo "DADOS DE CONEXÃO ENCONTRADOS:"
-              echo "=========================================="
+              $cmdId = & $anydeskPath --get-id
+              if ($cmdId) {
+                  Write-Host "ID do AnyDesk: $cmdId"
+              }
               
-              # Tenta capturar o ID do AnyDesk
-              CMD_ID=$(sudo "$ANYDESK_PATH" --get-id 2>/dev/null)
-              if [ -n "$CMD_ID" ]; then
-                  echo "ID via terminal: $CMD_ID"
-              else
-                  echo "Não foi possível capturar o ID automaticamente via terminal."
-                  echo "Verifique o arquivo system.conf ou tente abrir a interface."
-              fi
-              
-              echo "=========================================="
-              echo "Sua senha gerada para conectar é: $RANDOM_PASSWORD"
-              echo "=========================================="
-              
-          else
-              echo "Erro: AnyDesk não foi instalado corretamente."
+              Write-Host "Sua senha gerada é: $randomPassword"
+              Write-Host "=========================================="
+          } else {
+              Write-Error "AnyDesk não foi encontrado."
               exit 1
-          fi
+          }
 
       - name: Keep Alive and Monitor
         run: |
-          # Loop para manter o servidor macOS rodando e o AnyDesk ativo
-          while true; do
-            if ! pgrep -x "AnyDesk" > /dev/null; then
-              echo "AnyDesk parou, reiniciando..."
-              open -a AnyDesk
-            fi
-            sleep 60
-          done
+          $anydeskPath = "C:\Program Files (x86)\AnyDesk\anydesk.exe"
+          while ($true) {
+            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Start-Process -FilePath $anydeskPath -ArgumentList "--start-service"
+            }
+            Start-Sleep -Seconds 60
+          }
 
       - name: Clean Up Temporary Files
         if: always()
         run: |
-          echo "Limpeza completa."
+          Write-Host "Limpeza completa."
           
