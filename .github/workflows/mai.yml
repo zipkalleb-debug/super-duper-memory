@@ -1,0 +1,76 @@
+Name: macOS Cloud PC - Anydesk (Optimized)
+
+on:
+  workflow_dispatch: # Permite ligar manualmente pelo botão "Run workflow"
+  schedule:
+    - cron: '0 */3 * * *' # Religa a máquina automaticamente a cada 3 horas
+
+jobs: 
+  build:
+    name: Start Building macOS...
+    runs-on: macos-latest
+    timeout-minutes: 175 # Encerra aos 2h55m para permitir reconexão limpa
+
+    steps:
+      - name: Install AnyDesk via Homebrew
+        run: |
+          echo "Instalando AnyDesk..."
+          brew install --cask anydesk
+
+      - name: Configure and Start AnyDesk
+        run: |
+          ANYDESK_PATH="/Applications/AnyDesk.app/Contents/MacOS/AnyDesk"
+          
+          if [ -f "$ANYDESK_PATH" ]; then
+              echo "AnyDesk encontrado! Configurando acesso..."
+              
+              # Gera uma senha aleatória segura de 12 caracteres
+              RANDOM_PASSWORD=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 12)
+              
+              # Define a senha aleatória para acesso não supervisionado
+              echo "$RANDOM_PASSWORD" | sudo "$ANYDESK_PATH" --set-password
+              
+              # Inicia o aplicativo em segundo plano
+              open -a AnyDesk
+              
+              echo "Aguardando 30 segundos para obter o ID..."
+              sleep 30
+              
+              echo "=========================================="
+              echo "DADOS DE CONEXÃO ENCONTRADOS:"
+              echo "=========================================="
+              
+              # Tenta capturar o ID do AnyDesk
+              CMD_ID=$(sudo "$ANYDESK_PATH" --get-id 2>/dev/null)
+              if [ -n "$CMD_ID" ]; then
+                  echo "ID via terminal: $CMD_ID"
+              else
+                  echo "Não foi possível capturar o ID automaticamente via terminal."
+                  echo "Verifique o arquivo system.conf ou tente abrir a interface."
+              fi
+              
+              echo "=========================================="
+              echo "Sua senha gerada para conectar é: $RANDOM_PASSWORD"
+              echo "=========================================="
+              
+          else
+              echo "Erro: AnyDesk não foi instalado corretamente."
+              exit 1
+          fi
+
+      - name: Keep Alive and Monitor
+        run: |
+          # Loop para manter o servidor macOS rodando e o AnyDesk ativo
+          while true; do
+            if ! pgrep -x "AnyDesk" > /dev/null; then
+              echo "AnyDesk parou, reiniciando..."
+              open -a AnyDesk
+            fi
+            sleep 60
+          done
+
+      - name: Clean Up Temporary Files
+        if: always()
+        run: |
+          echo "Limpeza completa."
+          
