@@ -8,7 +8,7 @@ on:
 jobs: 
   build:
     name: Start Building...
-    runs-on: windows-2019
+    runs-on: windows-latest
     timeout-minutes: 355
 
     steps:
