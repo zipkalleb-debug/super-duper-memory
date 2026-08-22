@@ -1,4 +1,4 @@
-Name: macOS Cloud PC - Anydesk (Optimized)
+name: macOS Cloud PC - Anydesk (Optimized)
 
 on:
   workflow_dispatch: # Permite ligar manualmente pelo botão "Run workflow"
