@@ -1,4 +1,4 @@
-Name: Windows latest - Anydesk (Optimized)
+name: Windows latest - Anydesk (Optimized)
 
 on:
   workflow_dispatch:
