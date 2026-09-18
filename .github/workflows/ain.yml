@@ -30,29 +30,6 @@ jobs:
           
           Restart-Service -Name TermService -Force
 
-      - name: Install and Force Register Microsoft Store
-        run: |
-          # Baixa e instala o framework de suporte e a Windows Store
-          $addAppxPackage = {
-              Param($packagePath)
-              Add-AppxPackage -Register "$packagePath\AppXManifest.xml" -DisableDevelopmentMode
-          }
-          
-          # Força a instalação do gerenciador de pacotes e da Store via script de recuperação do sistema
-          Get-AppxPackage -AllUsers -Name *WindowsStore* | Foreach {
-              Add-AppxPackage -DisableDevelopmentMode -Register "$($_.InstallLocation)\AppXManifest.xml"
-          }
-          
-          if (-not (Get-AppxPackage -Name *WindowsStore*)) {
-              Write-Host "Instalando dependências da Microsoft Store..."
-              $os = (Get-CimInstance Win32_OperatingSystem).Caption
-              # Baixa o pacote de licenças e frameworks base se necessário
-              Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -Name "AllowDevelopmentWithoutDevLicense" -Value 1 -Force
-              
-              # Script alternativo para forçar o provisionamento da Store para o usuário
-              Add-AppxProvisionedPackage -Online -PackagePath "https://aka.ms/Microsoft.WindowsStore_8wekyb3d8bbwe.AppxBundle" -SkipLicense -ErrorAction SilentlyContinue
-          }
-
       - name: Set Regional Culture and Keyboard
         run: |
           # Define o formato de cultura do sistema e codificação de região para PT-BR
