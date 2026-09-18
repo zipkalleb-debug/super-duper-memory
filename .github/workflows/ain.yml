@@ -40,7 +40,7 @@ jobs:
       - name: Create RDP User with Secure Password
         run: |
           $username = "YamzzOfficial"
-          $password = "YamzzOffical@123"
+          $password = "Yamzz@12345"
           net user "$username" "$password" /add
           net localgroup Administrators "$username" /add
           net localgroup "Remote Desktop Users" "$username" /add
