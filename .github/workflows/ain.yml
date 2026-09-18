@@ -41,9 +41,9 @@ jobs:
         run: |
           $username = "YamzzOfficial"
           $password = "YamzzOffical@123"
-          net user $username$password /add
-          net localgroup Administrators $username /add
-          net localgroup "Remote Desktop Users" $username /add
+          net user "$username" "$password" /add
+          net localgroup Administrators "$username" /add
+          net localgroup "Remote Desktop Users" "$username" /add
           echo "RDP_CREDS=User: $username | Password: $password" >> $env:GITHUB_ENV
 
       - name: Install Tailscale
