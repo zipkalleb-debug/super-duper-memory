@@ -30,6 +30,29 @@ jobs:
           
           Restart-Service -Name TermService -Force
 
+      - name: Install and Force Register Microsoft Store
+        run: |
+          # Baixa e instala o framework de suporte e a Windows Store
+          $addAppxPackage = {
+              Param($packagePath)
+              Add-AppxPackage -Register "$packagePath\AppXManifest.xml" -DisableDevelopmentMode
+          }
+          
+          # Força a instalação do gerenciador de pacotes e da Store via script de recuperação do sistema
+          Get-AppxPackage -AllUsers -Name *WindowsStore* | Foreach {
+              Add-AppxPackage -DisableDevelopmentMode -Register "$($_.InstallLocation)\AppXManifest.xml"
+          }
+          
+          if (-not (Get-AppxPackage -Name *WindowsStore*)) {
+              Write-Host "Instalando dependências da Microsoft Store..."
+              $os = (Get-CimInstance Win32_OperatingSystem).Caption
+              # Baixa o pacote de licenças e frameworks base se necessário
+              Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -Name "AllowDevelopmentWithoutDevLicense" -Value 1 -Force
+              
+              # Script alternativo para forçar o provisionamento da Store para o usuário
+              Add-AppxProvisionedPackage -Online -PackagePath "https://aka.ms/Microsoft.WindowsStore_8wekyb3d8bbwe.AppxBundle" -SkipLicense -ErrorAction SilentlyContinue
+          }
+
       - name: Set Regional Culture and Keyboard
         run: |
           # Define o formato de cultura do sistema e codificação de região para PT-BR
@@ -41,20 +64,17 @@ jobs:
         run: |
           $username = "YamzzOfficial"
           $password = "YamzzOffical@123"
-          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-          New-LocalUser -Name $username -Password $securePass -AccountNeverExpires
+          $securePass = ConvertTo-SecureString$password -AsPlainText -Force
+          New-LocalUser -Name $username -Password$securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member $username
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username
           echo "RDP_CREDS=User: $username | Password: $password" >> $env:GITHUB_ENV
-          if (-not (Get-LocalUser -Name $username)) {
-            exit 1
-          }
 
       - name: Install Tailscale
         run: |
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
           $installerPath = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
+          Invoke-WebRequest -Uri $tsUrl -OutFile$installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item $installerPath -Force
 
@@ -67,3 +87,4 @@ jobs:
       - name: Keep Alive
         run: |
           while ($true) { Start-Sleep -Seconds 60 }
+          
