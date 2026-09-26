@@ -37,19 +37,11 @@ jobs:
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "LocaleName" -Value "pt-BR"
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "sLanguage" -Value "PTB"
 
-      - name: Create RDP User with Custom Password
+      - name: Set Administrator Password
         run: |
-          # Desativa a complexidade de senha no Windows Server para aceitar a senha simples
-          net accounts /minpwlen:0 /uniquepw:0
-          secedit /export /cfg "$env:TEMP\sec.cfg"
-          (Get-Content "$env:TEMP\sec.cfg") -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' \vert{} Set-Content "$env:TEMP\sec.cfg"
-          secedit /configure /db "$env:TEMP\sec.sdb" /cfg "$env:TEMP\sec.cfg" /areas SECURITYPOLICY
-          
-          $username = "Pedro"
+          $username = "Administrator"
           $password = "pedrom2815"
-          net user "$username" "$password" /add
-          net localgroup Administrators "$username" /add
-          net localgroup "Remote Desktop Users" "$username" /add
+          net user "$username" "$password"
           echo "RDP_CREDS=User: $username | Password: $password" >> $env:GITHUB_ENV
 
       - name: Install Tailscale
