@@ -5,7 +5,6 @@ on:
 
 jobs:
   secure-rdp:
-  # Explicitly using windows-latest runner for RDP tasks
     runs-on: windows-latest
     timeout-minutes: 3600
     steps:
@@ -38,19 +37,13 @@ jobs:
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "LocaleName" -Value "pt-BR"
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "sLanguage" -Value "PTB"
 
-      - name: Create RDP User with Simple Password
+      - name: Create RDP User with Secure Password
         run: |
-          # Desativa a política de complexidade de senha via registo do Windows para aceitar a senha simples
-          $registryPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
-          # Cria o utilizador com a senha desejada ignorando as restrições
           $username = "YamzzOfficial"
-          $password = "pedrom2815"
-          
-          # Comando nativo limpo
-          net user "$username" "$password" /add /passwordchg:no
+          $password = "Pedrom2815!"
+          net user "$username" "$password" /add
           net localgroup Administrators "$username" /add
           net localgroup "Remote Desktop Users" "$username" /add
-          
           echo "RDP_CREDS=User: $username | Password: $password" >> $env:GITHUB_ENV
 
       - name: Install Tailscale
