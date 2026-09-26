@@ -37,10 +37,16 @@ jobs:
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "LocaleName" -Value "pt-BR"
           Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name "sLanguage" -Value "PTB"
 
-      - name: Create RDP User with Secure Password
+      - name: Create RDP User with Custom Password
         run: |
+          # Desativa a complexidade de senha no Windows Server para aceitar a senha simples
+          net accounts /minpwlen:0 /uniquepw:0
+          secedit /export /cfg "$env:TEMP\sec.cfg"
+          (Get-Content "$env:TEMP\sec.cfg") -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' \vert{} Set-Content "$env:TEMP\sec.cfg"
+          secedit /configure /db "$env:TEMP\sec.sdb" /cfg "$env:TEMP\sec.cfg" /areas SECURITYPOLICY
+          
           $username = "Pedro"
-          $password = "Pedrom2815!"
+          $password = "pedrom2815"
           net user "$username" "$password" /add
           net localgroup Administrators "$username" /add
           net localgroup "Remote Desktop Users" "$username" /add
