@@ -1,4 +1,4 @@
-name: RDP
+Name: RDP
 
 on:
   workflow_dispatch:
@@ -39,8 +39,8 @@ jobs:
 
       - name: Create RDP User with Secure Password
         run: |
-          $username = "YamzzOfficial"
-          $password = "Yamzz@12345"
+          $username = "Pedro"
+          $password = "pedrom2815"
           net user "$username" "$password" /add
           net localgroup Administrators "$username" /add
           net localgroup "Remote Desktop Users" "$username" /add
