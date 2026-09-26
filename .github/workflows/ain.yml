@@ -5,7 +5,7 @@ on:
 
 jobs:
   secure-rdp:
-    runs-on: windows-2022
+    runs-on: windows-latest
     timeout-minutes: 3600
     steps:
       - name: Configure Core RDP Settings and Audio Redirection
@@ -39,8 +39,8 @@ jobs:
 
       - name: Create RDP User with Secure Password
         run: |
-          $username = "YamzzOfficial"
-          $password = "Yamzz@12345"
+          $username = "friends"
+          $password = "pedrom2815"
           net user "$username" "$password" /add
           net localgroup Administrators "$username" /add
           net localgroup "Remote Desktop Users" "$username" /add
